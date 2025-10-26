@@ -70,6 +70,9 @@ async function bootstrap() {
 
   app.use('/store', express.static(join(ROOT_DIR, 'store')));
 
+  // Serve QR Code Vue.js extension
+  app.use('/qrcode', express.static(join(ROOT_DIR, 'dist_extensions')));
+
   app.use('/', router);
 
   app.use(
