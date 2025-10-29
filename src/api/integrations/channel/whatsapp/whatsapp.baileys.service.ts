@@ -1416,6 +1416,9 @@ export class BaileysStartupService extends ChannelStartupService {
               const friendlyText =
                 messageContentUpdate?.conversation ??
                 messageContentUpdate?.extendedTextMessage?.text ??
+                messageContentUpdate?.imageMessage?.caption ??
+                messageContentUpdate?.videoMessage?.caption ??
+                messageContentUpdate?.documentMessage?.caption ??
                 (payloadToProcess as any)?.text ??
                 '';
 

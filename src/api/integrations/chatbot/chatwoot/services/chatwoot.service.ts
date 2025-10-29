@@ -2309,6 +2309,9 @@ export class ChatwootService {
         const editedMessageContentRaw =
           body?.editedMessage?.conversation ??
           body?.editedMessage?.extendedTextMessage?.text ??
+          body?.editedMessage?.imageMessage?.caption ??
+          body?.editedMessage?.videoMessage?.caption ??
+          body?.editedMessage?.documentMessage?.caption ??
           (typeof body?.text === 'string' ? body.text : undefined);
 
         const editedMessageContent = (editedMessageContentRaw ?? '').trim();
@@ -2330,8 +2333,7 @@ export class ChatwootService {
 
         if (message.chatwootConversationId) {
           const label = `\`${i18next.t('cw.message.edited')}\``; // "Mensagem editada"
-          const editedText = `\n\n${label}:\n\n${editedMessageContent}`;
-
+          const editedText = `${label}:${editedMessageContent}`;
           const send = await this.createMessage(
             instance,
             message.chatwootConversationId,
