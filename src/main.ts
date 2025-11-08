@@ -31,19 +31,29 @@ function initWA() {
 }
 
 async function bootstrap() {
+  console.log('🚀 Bootstrap started...');
   const logger = new Logger('SERVER');
+  console.log('✓ Logger initialized');
   const app = express();
+  console.log('✓ Express app created');
 
   let providerFiles: ProviderFiles = null;
+  console.log('🔍 Checking provider configuration...');
   if (configService.get<ProviderSession>('PROVIDER').ENABLED) {
     providerFiles = new ProviderFiles(configService);
     await providerFiles.onModuleInit();
     logger.info('Provider:Files - ON');
+    console.log('✓ Provider files initialized');
+  } else {
+    console.log('⚠️ Provider files disabled');
   }
 
+  console.log('🗄️ Initializing Prisma repository...');
   const prismaRepository = new PrismaRepository(configService);
   await prismaRepository.onModuleInit();
+  console.log('✓ Prisma repository initialized');
 
+  console.log('⚙️ Configuring Express middleware...');
   app.use(
     cors({
       origin(requestOrigin, callback) {
@@ -63,15 +73,21 @@ async function bootstrap() {
     json({ limit: '136mb' }),
     compression(),
   );
+  console.log('✓ Middleware configured');
 
+  console.log('🔧 Setting up view engine and static files...');
   app.set('view engine', 'hbs');
   app.set('views', join(ROOT_DIR, 'views'));
   app.use(express.static(join(ROOT_DIR, 'public')));
 
   app.use('/store', express.static(join(ROOT_DIR, 'store')));
+  console.log('✓ Views and static files configured');
 
+  console.log('🛣️ Setting up routes...');
   app.use('/', router);
+  console.log('✓ Routes configured');
 
+  console.log('⚠️ Setting up error handlers...');
   app.use(
     (err: Error, req: Request, res: Response, next: NextFunction) => {
       if (err) {
@@ -132,42 +148,67 @@ async function bootstrap() {
       next();
     },
   );
+  console.log('✓ Error handlers configured');
 
+  console.log('🌐 Getting HTTP server configuration...');
   const httpServer = configService.get<HttpServer>('SERVER');
+  console.log(`Server type: ${httpServer.TYPE}, Port: ${httpServer.PORT}`);
 
+  console.log('🚀 Creating server instance...');
   ServerUP.app = app;
   let server = ServerUP[httpServer.TYPE];
+  console.log(`Server created: ${server ? '✓' : '✗'}`);
 
   if (server === null) {
+    console.log('⚠️ SSL cert load failed — falling back to HTTP');
     logger.warn('SSL cert load failed — falling back to HTTP.');
     logger.info("Ensure 'SSL_CONF_PRIVKEY' and 'SSL_CONF_FULLCHAIN' env vars point to valid certificate files.");
 
     httpServer.TYPE = 'http';
     server = ServerUP[httpServer.TYPE];
+    console.log('✓ Fallback to HTTP server');
   }
 
+  console.log('📡 Initializing event manager...');
   eventManager.init(server);
+  console.log('✓ Event manager initialized');
 
-const sentryConfig = configService.get<SentryConfig>('SENTRY');
-if (sentryConfig?.DSN) {
-  logger.info('Sentry - ON');
+  console.log('🔍 Checking Sentry configuration...');
+  const sentryConfig = configService.get<SentryConfig>('SENTRY');
+  if (sentryConfig?.DSN) {
+    logger.info('Sentry - ON');
+    console.log('✓ Sentry enabled');
+    
+    // Add this after all routes,
+    // but before any other error-handling middlewares are defined
+    Sentry.setupExpressErrorHandler(app);
+  } else {
+    console.log('⚠️ Sentry disabled (no DSN)');
+  }
+
+  const port = parseInt(process.env.PORT, 10) || httpServer.PORT;
+  console.log(`🎯 Attempting to start server on port ${port}...`);
   
-  // Add this after all routes,
-  // but before any other error-handling middlewares are defined
-  Sentry.setupExpressErrorHandler(app);
+  try {
+    server.listen(port);
+    console.log(`✅ SERVER LISTENING ON PORT ${port}`);
+    logger.log(httpServer.TYPE.toUpperCase() + ' - ON: ' + port);
+  } catch (error) {
+    console.error('❌ FAILED TO START SERVER:', error);
+    logger.error('Failed to start server:', error);
+    process.exit(1);
+  }
+
+  console.log('📱 Initializing WhatsApp connections...');
+  initWA();
+  console.log('✓ WhatsApp initialized');
+
+  console.log('⚠️ Setting up unexpected error handlers...');
+  onUnexpectedError();
+  console.log('✓ Error handlers configured');
+  
+  console.log('🎉 BOOTSTRAP COMPLETED SUCCESSFULLY!');
 }
 
-const port = parseInt(process.env.PORT, 10) || httpServer.PORT;
-
-// Inicia o servidor
-server.listen(port);
-logger.log(httpServer.TYPE.toUpperCase() + ' - ON: ' + port);
-
-// Inicializa WhatsApp
-initWA();
-
-// Configura tratamento de erros
-onUnexpectedError();
-}
-
+console.log('🔥 Starting Evolution API...');
 bootstrap();
