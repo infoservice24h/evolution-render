@@ -39,8 +39,9 @@ COPY --from=builder /evolution/.env ./.env
 COPY --from=builder /evolution/Docker ./Docker
 COPY --from=builder /evolution/runWithProvider.js ./runWithProvider.js
 COPY --from=builder /evolution/tsup.config.ts ./tsup.config.ts
+COPY ./Docker/scripts/start.sh /evolution/start.sh
+RUN chmod +x /evolution/start.sh
 ENV DOCKER_ENV=true
 EXPOSE 8080
 
-# Remove o deploy_database.sh do ENTRYPOINT, pois o Render já faz isso no Pre-Deploy
-CMD ["npm", "run", "start:prod"]
+CMD ["/evolution/start.sh"]
