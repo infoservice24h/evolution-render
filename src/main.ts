@@ -189,20 +189,9 @@ async function bootstrap() {
   const port = parseInt(process.env.PORT, 10) || httpServer.PORT;
   console.log(`🎯 Attempting to start server on port ${port}...`);
   
-  try {
-    const listening = server.listen(port);
-    console.log(`✅ SERVER LISTENING ON PORT ${port}`);
-    logger.log(httpServer.TYPE.toUpperCase() + ' - ON: ' + port);
-    
-    listening.on('error', (err: any) => {
-      console.error('❌ Server error:', err);
-      logger.error('Server error:', err);
-    });
-  } catch (error) {
-    console.error('❌ FAILED TO START SERVER:', error);
-    logger.error('Failed to start server:', error);
-    process.exit(1);
-  }
+  server.listen(port);
+  console.log(`✅ SERVER LISTENING ON PORT ${port}`);
+  logger.log(httpServer.TYPE.toUpperCase() + ' - ON: ' + port);
 
   console.log('📱 Initializing WhatsApp connections...');
   initWA();
