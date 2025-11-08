@@ -19,6 +19,7 @@ COPY ./Docker ./Docker
 RUN chmod +x ./Docker/scripts/* && dos2unix ./Docker/scripts/*
 RUN ./Docker/scripts/generate_database.sh
 RUN npx prisma migrate status --schema ./prisma/postgresql-schema.prisma
+RUN node runWithProvider.js "rm -rf ./prisma/migrations && cp -r ./prisma/DATABASE_PROVIDER-migrations ./prisma/migrations && npx prisma migrate status --schema ./prisma/DATABASE_PROVIDER-schema.prisma"
 RUN npm run build
 
 FROM node:24-alpine AS final
