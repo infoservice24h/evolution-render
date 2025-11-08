@@ -155,23 +155,18 @@ if (sentryConfig?.DSN) {
   // Add this after all routes,
   // but before any other error-handling middlewares are defined
   Sentry.setupExpressErrorHandler(app);
-} else {
-  logger.info('Sentry - OFF');
 }
 
-const port = parseInt(process.env.PORT || process.env.SERVER_PORT, 10) || 8080;
-server.listen(port, '0.0.0.0', () => {
-  logger.log(`${httpServer.TYPE.toUpperCase()} - ON: ${port}`);
-  console.log(`✓ Server listening on port ${port}`);
-}).on('error', (err) => {
-  logger.error('Server failed to start:', err);
-  process.exit(1);
-});
+const port = parseInt(process.env.PORT, 10) || httpServer.PORT;
 
-logger.info('Initializing WhatsApp connections...');
+// Inicia o servidor
+server.listen(port);
+logger.log(httpServer.TYPE.toUpperCase() + ' - ON: ' + port);
+
+// Inicializa WhatsApp
 initWA();
 
-logger.info('Setting up error handlers...');
+// Configura tratamento de erros
 onUnexpectedError();
 }
 
