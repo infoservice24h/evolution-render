@@ -11,16 +11,17 @@ if [[ "$DATABASE_PROVIDER" == "postgresql" || "$DATABASE_PROVIDER" == "mysql" ||
     echo "Generating database for $DATABASE_PROVIDER"
     echo "Database URL: $DATABASE_URL"
 
-    # --- ADICIONE ESTA LINHA PARA EXECUTAR AS MIGRAÇÕES ---
+    # --- MODIFICAÇÃO AQUI ---
     echo "Deploying Prisma migrations..."
-    npx prisma migrate deploy --schema ./prisma/DATABASE_PROVIDER-schema.prisma
+    # Use o nome real do schema ANTES da substituição pelo runWithProvider.js
+    npx prisma migrate deploy --schema ./prisma/postgresql-schema.prisma
     if [ $? -ne 0 ]; then
         echo "Prisma migrate deploy failed"
         exit 1
     else
         echo "Prisma migrate deploy succeeded"
     fi
-    # --- FIM DA LINHA ADICIONADA ---
+    # --- FIM DA MODIFICAÇÃO ---
 
     npm run db:generate
     if [ $? -ne 0 ]; then
