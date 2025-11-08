@@ -148,22 +148,31 @@ async function bootstrap() {
 
   eventManager.init(server);
 
-  const sentryConfig = configService.get<SentryConfig>('SENTRY');
-  if (sentryConfig.DSN) {
-    logger.info('Sentry - ON');
+const sentryConfig = configService.get<SentryConfig>('SENTRY');
+if (sentryConfig?.DSN) {
+  logger.info('Sentry - ON');
+  
+  // Add this after all routes,
+  // but before any other error-handling middlewares are defined
+  Sentry.setupExpressErrorHandler(app);
+} else {
+  logger.info('Sentry - OFF');
+}
 
-    // Add this after all routes,
-    // but before any and other error-handling middlewares are defined
-    Sentry.setupExpressErrorHandler(app);
-  }
+const port = parseInt(process.env.PORT || process.env.SERVER_PORT, 10) || 8080;
+server.listen(port, '0.0.0.0', () => {
+  logger.log(`${httpServer.TYPE.toUpperCase()} - ON: ${port}`);
+  console.log(`✓ Server listening on port ${port}`);
+}).on('error', (err) => {
+  logger.error('Server failed to start:', err);
+  process.exit(1);
+});
 
-  /// server.listen(httpServer.PORT, () => logger.log(httpServer.TYPE.toUpperCase() + ' - ON: ' + httpServer.PORT));
-  const port = parseInt(process.env.PORT, 10) || httpServer.PORT;
-  server.listen(port, '0.0.0.0', () => logger.log(httpServer.TYPE.toUpperCase() + ' - ON: ' + port));
+logger.info('Initializing WhatsApp connections...');
+initWA();
 
-  initWA();
-
-  onUnexpectedError();
+logger.info('Setting up error handlers...');
+onUnexpectedError();
 }
 
 bootstrap();
