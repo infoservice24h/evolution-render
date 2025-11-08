@@ -26,8 +26,8 @@ import cors from 'cors';
 import express, { json, NextFunction, Request, Response, urlencoded } from 'express';
 import { join } from 'path';
 
-function initWA() {
-  waMonitor.loadInstance();
+async function initWA() {
+  await waMonitor.loadInstance();
 }
 
 async function bootstrap() {
@@ -161,7 +161,9 @@ async function bootstrap() {
   const port = parseInt(process.env.PORT, 10) || httpServer.PORT;
   server.listen(port, '0.0.0.0', () => logger.log(httpServer.TYPE.toUpperCase() + ' - ON: ' + port));
 
-  initWA();
+  initWA().catch((error) => {
+    logger.error('Error loading instances: ' + error);
+  });
 
   onUnexpectedError();
 }

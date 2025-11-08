@@ -82,7 +82,7 @@ import { createId as cuid } from '@paralleldrive/cuid2';
 import { Instance, Message } from '@prisma/client';
 import { createJid } from '@utils/createJid';
 import { fetchLatestWaWebVersion } from '@utils/fetchLatestWaWebVersion';
-import {makeProxyAgent, makeProxyAgentUndici} from '@utils/makeProxyAgent';
+import { makeProxyAgent, makeProxyAgentUndici } from '@utils/makeProxyAgent';
 import { getOnWhatsappCache, saveOnWhatsappCache } from '@utils/onWhatsappCache';
 import { status } from '@utils/renderStatus';
 import { sendTelemetry } from '@utils/sendTelemetry';
@@ -265,6 +265,28 @@ export class BaileysStartupService extends ChannelStartupService {
     await this.client?.logout('Log out instance: ' + this.instanceName);
 
     this.client?.ws?.close();
+
+    const db = this.configService.get<Database>('DATABASE');
+    const cache = this.configService.get<CacheConf>('CACHE');
+    const provider = this.configService.get<ProviderSession>('PROVIDER');
+
+    if (provider?.ENABLED) {
+      const authState = await this.authStateProvider.authStateProvider(this.instance.id);
+
+      await authState.removeCreds();
+    }
+
+    if (cache?.REDIS.ENABLED && cache?.REDIS.SAVE_INSTANCES) {
+      const authState = await useMultiFileAuthStateRedisDb(this.instance.id, this.cache);
+
+      await authState.removeCreds();
+    }
+
+    if (db.SAVE_DATA.INSTANCE) {
+      const authState = await useMultiFileAuthStatePrisma(this.instance.id, this.cache);
+
+      await authState.removeCreds();
+    }
 
     const sessionExists = await this.prismaRepository.session.findFirst({ where: { sessionId: this.instanceId } });
     if (sessionExists) {
@@ -569,15 +591,6 @@ export class BaileysStartupService extends ChannelStartupService {
     const version = baileysVersion.version;
     const log = `Baileys version: ${version.join('.')}`;
 
-    // if (session.VERSION) {
-    //   version = session.VERSION.split('.');
-    //   log = `Baileys version env: ${version}`;
-    // } else {
-    //   const baileysVersion = await fetchLatestWaWebVersion({});
-    //   version = baileysVersion.version;
-    //   log = `Baileys version: ${version}`;
-    // }
-
     this.logger.info(log);
 
     this.logger.info(`Group Ignore: ${this.localSettings.groupsIgnore}`);
@@ -709,6 +722,11 @@ export class BaileysStartupService extends ChannelStartupService {
       this.loadSettings();
       this.loadWebhook();
       this.loadProxy();
+
+      // Remontar o messageProcessor para garantir que está funcionando após reconexão
+      this.messageProcessor.mount({
+        onMessageReceive: this.messageHandle['messages.upsert'].bind(this),
+      });
 
       return await this.createClient(number);
     } catch (error) {
@@ -1130,16 +1148,6 @@ export class BaileysStartupService extends ChannelStartupService {
             }
           }
 
-          const messageKey = `${this.instance.id}_${received.key.id}`;
-          const cached = await this.baileysCache.get(messageKey);
-
-          if (cached && !editedMessage && !requestId) {
-            this.logger.info(`Message duplicated ignored: ${received.key.id}`);
-            continue;
-          }
-
-          await this.baileysCache.set(messageKey, true, this.MESSAGE_CACHE_TTL_SECONDS);
-
           if (
             (type !== 'notify' && type !== 'append') ||
             editedMessage ||
@@ -1349,6 +1357,10 @@ export class BaileysStartupService extends ChannelStartupService {
           this.logger.verbose(messageRaw);
 
           sendTelemetry(`received.message.${messageRaw.messageType ?? 'unknown'}`);
+          if (messageRaw.key.remoteJid?.includes('@lid') && messageRaw.key.remoteJidAlt) {
+            messageRaw.key.remoteJid = messageRaw.key.remoteJidAlt;
+          }
+          console.log(messageRaw);
 
           this.sendDataWebhook(Events.MESSAGES_UPSERT, messageRaw);
 
@@ -1442,7 +1454,7 @@ export class BaileysStartupService extends ChannelStartupService {
         const cached = await this.baileysCache.get(updateKey);
 
         if (cached) {
-          this.logger.info(`Message duplicated ignored [avoid deadlock]: ${updateKey}`);
+          this.logger.info(`Update Message duplicated ignored [avoid deadlock]: ${updateKey}`);
           continue;
         }
 
